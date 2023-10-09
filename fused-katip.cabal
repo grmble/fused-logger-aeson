@@ -1,0 +1,72 @@
+cabal-version:      3.6
+name:               fused-katip
+version:            0.1.0.0
+synopsis:           Using Katip with fused-effects
+-- A longer description of the package.
+-- description:
+homepage:           https://github.coom/grmble/fused-katip
+-- A URL where users can report bugs.
+-- bug-reports:
+license:            MIT
+license-file:       LICENSE
+author:             Juergen Gmeiner
+maintainer:         spamless.juergen@gmail.com
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+
+common deps
+    build-depends:
+        -- 4.16.4 is ghc 9.2.x
+        , base ^>=4.16.4.0
+        , katip
+        , fused-effects
+        , template-haskell
+    default-language: GHC2021
+
+common test-deps
+    import: deps
+    build-depends:    
+        , doctest
+        , hspec
+        , hspec-discover
+        , QuickCheck
+
+common opts
+    ghc-options:
+        -O      
+        -Wall
+        -Wcompat
+        -Wincomplete-record-updates
+        -Wincomplete-uni-patterns
+        -Wredundant-constraints
+
+common exec-opts
+    import: opts
+    ghc-options:      
+        -threaded
+        -rtsopts
+        -with-rtsopts=-N
+        -with-rtsopts=-T
+
+        
+library
+    import:           deps, opts
+    exposed-modules:  XxxLib
+    -- Modules included in this library but not exported.
+    -- other-modules:
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    hs-source-dirs:   src
+    
+test-suite fused-katip-test
+    import:           deps, test-deps, opts, exec-opts
+    other-modules:    XxxLibSpec
+    build-depends:    fused-katip
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Spec.hs
+    

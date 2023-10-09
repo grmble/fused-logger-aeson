@@ -22,9 +22,12 @@ common deps
     build-depends:
         -- 4.16.4 is ghc 9.2.x
         , base ^>=4.16.4.0
+        , aeson
+        , fast-logger
         , katip
         , fused-effects
         , template-haskell
+        , text
     default-language: GHC2021
 
 common test-deps
@@ -55,12 +58,19 @@ common exec-opts
         
 library
     import:           deps, opts
-    exposed-modules:  XxxLib
+    exposed-modules:  XxxLib, Control.Effect.Katip, Control.Carrier.Katip
     -- Modules included in this library but not exported.
     -- other-modules:
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     hs-source-dirs:   src
+
+executable fused-katip
+    import:           deps, opts, exec-opts
+    build-depends:    fused-katip
+    hs-source-dirs:   app
+    main-is:          Main.hs
+    
     
 test-suite fused-katip-test
     import:           deps, test-deps, opts, exec-opts

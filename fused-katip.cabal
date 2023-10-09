@@ -58,7 +58,7 @@ common exec-opts
         
 library
     import:           deps, opts
-    exposed-modules:  XxxLib, Control.Effect.Katip, Control.Carrier.Katip
+    exposed-modules:  XxxLib, Control.Effect.Katip, Control.Effect.JLog, Control.Carrier.Katip, Control.Carrier.JLog
     -- Modules included in this library but not exported.
     -- other-modules:
     -- LANGUAGE extensions used by modules in this package.

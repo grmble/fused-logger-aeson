@@ -1,10 +1,10 @@
 cabal-version:      3.6
-name:               fused-katip
+name:               fused-logger-aeson
 version:            0.1.0.0
-synopsis:           Using Katip with fused-effects
+synopsis:           Using monad-logger-aeson with fused-effects
 -- A longer description of the package.
 -- description:
-homepage:           https://github.coom/grmble/fused-katip
+homepage:           https://github.coom/grmble/fused-logger-aeson
 -- A URL where users can report bugs.
 -- bug-reports:
 license:            MIT
@@ -23,11 +23,14 @@ common deps
         -- 4.16.4 is ghc 9.2.x
         , base ^>=4.16.4.0
         , aeson
+        , bytestring
+        , exceptions
         , fast-logger
-        , katip
         , fused-effects
-        , template-haskell
+        , monad-logger
+        , monad-logger-aeson
         , text
+        , time
     default-language: GHC2021
 
 common test-deps
@@ -58,24 +61,23 @@ common exec-opts
         
 library
     import:           deps, opts
-    exposed-modules:  XxxLib, Control.Effect.Katip, Control.Effect.JLog, Control.Carrier.Katip, Control.Carrier.JLog
+    exposed-modules:  
+        Control.Effect.LoggerAeson
+        Control.Carrier.LoggerAeson
+        Control.Carrier.LoggerAeson.Reader
     -- Modules included in this library but not exported.
     -- other-modules:
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     hs-source-dirs:   src
 
-executable fused-katip
-    import:           deps, opts, exec-opts
-    build-depends:    fused-katip
-    hs-source-dirs:   app
-    main-is:          Main.hs
-    
-    
 test-suite fused-katip-test
     import:           deps, test-deps, opts, exec-opts
-    other-modules:    XxxLibSpec
-    build-depends:    fused-katip
+    other-modules:    
+        Example
+        LoggerAesonSpec
+        LoggerAesonReaderSpec
+    build-depends:    fused-logger-aeson
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Spec.hs

@@ -71,7 +71,7 @@ library
     -- other-extensions:
     hs-source-dirs:   src
 
-test-suite fused-katip-test
+test-suite fused-logger-aeson-test
     import:           deps, test-deps, opts, exec-opts
     other-modules:    
         Example

@@ -49,7 +49,7 @@ instance (MonadIO m, Algebra sig m) => Algebra (Logger :+: sig) (RCLoggingIOC m)
       liftIO $ logfn (locFromCS cs) ls lvl (toLogStr $ encodingToLazyByteString $ logItemEncoding item)
       return ctx
     L (WithContext pairs action) -> LoggingT $ \logfn -> ReaderC $ \r ->
-      runReader (keyMapUnion r $ KM.fromList pairs) $
+      runReader (keyMapUnion (KM.fromList pairs) r) $
         flip runLoggingT logfn $
           runRCLoggingIOC $
             hdl (action <$ ctx)

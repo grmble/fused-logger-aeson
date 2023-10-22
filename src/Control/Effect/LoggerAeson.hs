@@ -26,12 +26,13 @@ module Control.Effect.LoggerAeson
     logWarnCS,
     logErrorCS,
 
-    -- * Types
+    -- * Types and utilites
     Logger (..),
-
-    -- * Re-exports from @monad-logger@ or @monad-logger-aeson@
     Message (..),
     LogLevel (..),
+    levelText,
+
+    -- * Re-exports
     Pair,
     Value,
     (.=),
@@ -40,11 +41,6 @@ where
 
 import Control.Algebra (Has, send)
 import Data.Aeson
-  ( FromJSON,
-    KeyValue ((.=)),
-    ToJSON (toEncoding),
-    Value,
-  )
 import Data.Aeson.Encoding qualified as AE
 import Data.Aeson.KeyMap qualified as KM
 import Data.Aeson.Types (Pair)
@@ -136,10 +132,10 @@ data Logger (m :: Type -> Type) k where
 
 -- | Log levels 'monad-logger' style
 data LogLevel
-  = LevelDebug
-  | LevelInfo
+  = LevelError
   | LevelWarn
-  | LevelError
+  | LevelInfo
+  | LevelDebug
   | LevelOther Text
   deriving (Show, Eq, Generic, Ord)
 
@@ -158,27 +154,13 @@ levelText LevelError = "error"
 levelText (LevelOther x) = x
 
 levelFromText :: Text -> LogLevel
-levelFromText "debug" = LevelDebug
-levelFromText "info" = LevelInfo
-levelFromText "warn" = LevelWarn
 levelFromText "error" = LevelError
+levelFromText "warn" = LevelWarn
+levelFromText "info" = LevelInfo
+levelFromText "debug" = LevelDebug
 levelFromText x = LevelOther x
 
 data Message = Text :# [Pair] deriving (Show, Eq, Ord)
 
 instance IsString Message where
   fromString s = T.pack s :# []
-
-instance ToJSON Message where
-  toEncoding (text :# meta) =
-    let metaMap = KM.fromList meta
-     in AE.pairs $
-          if KM.null metaMap
-            then "text" .= text
-            else "text" .= text <> "meta" .= metaMap
-  toJSON (text :# meta) =
-    let metaMap = KM.fromList meta
-     in A.object $
-          if KM.null metaMap
-            then ["text" .= text]
-            else ["text" .= text, "meta" .= metaMap]

@@ -37,6 +37,7 @@ common test-deps
         , hspec
         , hspec-discover
         , QuickCheck
+        , quickcheck-text
 
 common opts
     ghc-options:
@@ -60,9 +61,9 @@ library
     import:           deps, opts
     exposed-modules:  
         Control.Effect.LoggerAeson
+        Control.Carrier.LoggerAeson
         Control.Carrier.LoggerAeson.Class
         Control.Carrier.LoggerAeson.Color
-        Control.Carrier.LoggerAeson.RIO
     -- Modules included in this library but not exported.
     -- other-modules:
     -- LANGUAGE extensions used by modules in this package.
@@ -73,7 +74,9 @@ test-suite fused-logger-aeson-test
     import:           deps, test-deps, opts, exec-opts
     other-modules:    
         Example
-        LoggerAesonRIOSpec
+        Control.Carrier.LoggerAesonSpec
+        Control.Carrier.LoggerAeson.ClassSpec
+        Control.Effect.LoggerAesonSpec
     build-depends:    fused-logger-aeson
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test

@@ -3,7 +3,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Control.Carrier.LoggerAeson.RIO where
+module Control.Carrier.LoggerAeson where
 
 import Control.Algebra (Algebra (..), type (:+:) (..))
 import Control.Carrier.LoggerAeson.Class
@@ -11,7 +11,7 @@ import Control.Carrier.LoggerAeson.Color (coloredItem)
 import Control.Effect.LoggerAeson
   ( LogLevel,
     Logger (..),
-    Message,
+    Message ((:#)),
     Value,
   )
 import Control.Effect.Reader
@@ -83,7 +83,7 @@ defaultLoggerEnv :: IO (LoggerEnv IO LogItem)
 defaultLoggerEnv = loggerEnv stdout
 
 defaultMkLogItem :: KM.KeyMap Value -> CallStack -> LogLevel -> Message -> IO LogItem
-defaultMkLogItem ctx cs lvl msg = do
+defaultMkLogItem ctx cs lvl (text :# meta) = do
   now <- getCurrentTime
   return
     LogItem
@@ -91,7 +91,7 @@ defaultMkLogItem ctx cs lvl msg = do
         location = fromCallStack cs,
         level = lvl,
         threadContext = ctx,
-        message = msg
+        message = LogMessage {text, meta = KM.fromList meta}
       }
 
 jsonItem :: LogItem -> Builder

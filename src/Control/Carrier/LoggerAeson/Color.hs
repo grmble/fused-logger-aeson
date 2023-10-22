@@ -3,12 +3,13 @@
 module Control.Carrier.LoggerAeson.Color where
 
 import Control.Carrier.LoggerAeson.Class
-import Control.Effect.LoggerAeson (LogLevel (..), Message (..))
+import Control.Effect.LoggerAeson (LogLevel (..), Message (..), levelText)
 import Data.Aeson (Value, encode)
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Builder
 import Data.Function ((&))
 import Data.Text qualified as T
+import Data.Text.Encoding (encodeUtf8Builder)
 import Data.Text.Encoding qualified as T
 import Data.Time (LocalTime (localTimeOfDay), utcToLocalTime)
 import Data.Time.Clock (UTCTime)
@@ -26,16 +27,18 @@ coloredItem
       message
     } =
     do
-      let text :# meta = message
+      let LogMessage {text, meta} = message
       timestampBuilder tz time
         <> char7 ' '
         <> sgrBuilder (levelColor level)
-        <> string7 (levelText level)
+        <> char7 '['
+        <> coloredLevelText level
+        <> char7 ']'
         <> sgrBuilder [Reset]
         <> keymapBuilder threadContext
         <> char7 ' '
         <> byteString (T.encodeUtf8 text)
-        <> keymapBuilder (KM.fromList meta)
+        <> keymapBuilder meta
         <> char7 '\n'
 
 keymapBuilder :: KM.KeyMap Value -> Builder
@@ -44,12 +47,9 @@ keymapBuilder km =
     then mempty
     else char7 ' ' <> lazyByteString (encode km)
 
-levelText :: LogLevel -> String
-levelText LevelDebug = "[debug]"
-levelText LevelInfo = "[info]"
-levelText LevelWarn = "[WARN]"
-levelText LevelError = "[ERROR]"
-levelText (LevelOther x) = T.unpack x
+coloredLevelText :: LogLevel -> Builder
+coloredLevelText lvl | lvl >= LevelInfo = encodeUtf8Builder $ levelText lvl
+coloredLevelText lvl = encodeUtf8Builder $ T.toUpper $ levelText lvl
 
 levelColor :: LogLevel -> [SGR]
 levelColor LevelDebug = [Reset]

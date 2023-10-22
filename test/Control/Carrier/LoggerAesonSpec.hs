@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module LoggerAesonRIOSpec where
+module Control.Carrier.LoggerAesonSpec where
 
+import Control.Carrier.LoggerAeson
 import Control.Carrier.LoggerAeson.Class (LoggerEnv (..))
-import Control.Carrier.LoggerAeson.RIO
 import Control.Carrier.Reader
 import Data.ByteString.Builder
 import Data.ByteString.Lazy.Char8 qualified as LB8
@@ -22,7 +22,7 @@ spec = do
         & runReader env {handle = builderLogger bref, fromItem = jsonItem}
         & runReader defaultContext
       builder <- readIORef bref
-      LB8.putStr (toLazyByteString builder)
+      -- LB8.putStr (toLazyByteString builder)
       LB8.unpack (toLazyByteString builder) `shouldNotContain` "666"
 
 builderLogger :: IORef Builder -> Builder -> IO ()

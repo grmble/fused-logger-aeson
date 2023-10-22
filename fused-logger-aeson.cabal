@@ -23,12 +23,9 @@ common deps
         -- 4.16.4 is ghc 9.2.x
         , base ^>=4.16.4.0
         , aeson
+        , ansi-terminal
         , bytestring
-        , exceptions
-        , fast-logger
         , fused-effects
-        , monad-logger
-        , monad-logger-aeson
         , text
         , time
     default-language: GHC2021
@@ -63,8 +60,9 @@ library
     import:           deps, opts
     exposed-modules:  
         Control.Effect.LoggerAeson
-        Control.Carrier.LoggerAeson
-        Control.Carrier.LoggerAeson.Reader
+        Control.Carrier.LoggerAeson.Class
+        Control.Carrier.LoggerAeson.Color
+        Control.Carrier.LoggerAeson.RIO
     -- Modules included in this library but not exported.
     -- other-modules:
     -- LANGUAGE extensions used by modules in this package.
@@ -75,8 +73,7 @@ test-suite fused-logger-aeson-test
     import:           deps, test-deps, opts, exec-opts
     other-modules:    
         Example
-        LoggerAesonSpec
-        LoggerAesonReaderSpec
+        LoggerAesonRIOSpec
     build-depends:    fused-logger-aeson
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test

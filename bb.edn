@@ -1,0 +1,5 @@
+{:tasks
+ {doctest (shell "cabal repl --with-ghc=doctest")
+  ;; install (shell "cabal install exe:name-of-proj --overwrite-policy=always")
+  test (shell "cabal test --test-show-details=always")}}
+

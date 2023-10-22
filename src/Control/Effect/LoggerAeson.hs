@@ -12,33 +12,25 @@ module Control.Effect.LoggerAeson
     -- ** Pushing a context
     withContext,
 
-    -- ** Implicit call stack, no @LogSource@
+    -- ** Implicit call stack
     logOther,
     logDebug,
     logInfo,
     logWarn,
     logError,
 
-    -- ** Explicit call stack no @LogSource@
+    -- ** Explicit call stack
     logOtherCS,
     logDebugCS,
     logInfoCS,
     logWarnCS,
     logErrorCS,
 
-    -- ** Implicit callstack, with @LogSource@
-    logOtherNS,
-    logDebugNS,
-    logInfoNS,
-    logWarnNS,
-    logErrorNS,
-
     -- * Types
     Logger (..),
 
     -- * Re-exports from @monad-logger@ or @monad-logger-aeson@
     Message (..),
-    LogSource,
     LogLevel (..),
     Pair,
     Value,
@@ -47,16 +39,34 @@ module Control.Effect.LoggerAeson
 where
 
 import Control.Algebra (Has, send)
-import Control.Monad.Logger.Aeson (LogLevel (..), LogSource, Message (..))
-import Data.Aeson ((.=))
-import Data.Aeson.Types (Pair, Value)
+import Data.Aeson
+  ( FromJSON,
+    KeyValue ((.=)),
+    ToJSON (toEncoding),
+    Value,
+  )
+import Data.Aeson.Encoding qualified as AE
+import Data.Aeson.KeyMap qualified as KM
+import Data.Aeson.Types (Pair)
+import Data.Aeson.Types qualified as A
 import Data.Kind (Type)
+import Data.Text (Text)
+import Data.Text qualified as T
+import GHC.Exts (IsString (..))
+import GHC.Generics (Generic)
 import GHC.Stack (CallStack, HasCallStack, callStack)
 
 -- $synopsis
 --
--- Structured JSON logging for @fused-effect@ using
--- @monad-logger-aeson@ as underlying implementation.
+-- Structured JSON logging for @fused-effect@.
+-- 'monad-logger-aeson' and 'monad-loger' are not actually
+-- used anymore because of the big dependency footprint,
+-- although it would be possible to define a carrier type for
+-- those systems.
+--
+-- The client code should require few changes though:
+-- just use @Control.Effect.LoggerAeson@ instead of
+-- 'Control.Monad.LoggerAeson'
 --
 -- @
 -- example :: (Has Logger sig m) => m ()
@@ -117,33 +127,58 @@ logErrorCS cs = logOtherCS cs LevelError
 
 -- | @LogLevel@ argument, with explicit callstack but no log source
 logOtherCS :: (Has Logger sig m) => CallStack -> LogLevel -> Message -> m ()
-logOtherCS cs lvl msg = send (LogOther cs "" lvl msg)
-
---
--- logsource
---
-
--- | Debug message, no stack but logsource
-logDebugNS :: (HasCallStack, Has Logger sig m) => LogSource -> Message -> m ()
-logDebugNS ls = logOtherNS ls LevelDebug
-
--- | Info message, no stack but logsource
-logInfoNS :: (HasCallStack, Has Logger sig m) => LogSource -> Message -> m ()
-logInfoNS ls = logOtherNS ls LevelInfo
-
--- | Warn message, no stack but logsource
-logWarnNS :: (HasCallStack, Has Logger sig m) => LogSource -> Message -> m ()
-logWarnNS ls = logOtherNS ls LevelWarn
-
--- | Error message, no stack but logsource
-logErrorNS :: (HasCallStack, Has Logger sig m) => LogSource -> Message -> m ()
-logErrorNS ls = logOtherNS ls LevelError
-
--- | @LogLevel@ argument, no stack but logsource
-logOtherNS :: (HasCallStack, Has Logger sig m) => LogSource -> LogLevel -> Message -> m ()
-logOtherNS ls lvl msg = send (LogOther callStack ls lvl msg)
+logOtherCS cs lvl msg = send (LogOther cs lvl msg)
 
 -- | Data type for the effect implementation
 data Logger (m :: Type -> Type) k where
-  LogOther :: CallStack -> LogSource -> LogLevel -> Message -> Logger m ()
+  LogOther :: CallStack -> LogLevel -> Message -> Logger m ()
   WithContext :: (Has Logger sig m) => [Pair] -> m a -> Logger m a
+
+-- | Log levels 'monad-logger' style
+data LogLevel
+  = LevelDebug
+  | LevelInfo
+  | LevelWarn
+  | LevelError
+  | LevelOther Text
+  deriving (Show, Eq, Generic, Ord)
+
+instance ToJSON LogLevel where
+  toEncoding = AE.text . levelText
+
+instance FromJSON LogLevel where
+  parseJSON (A.String txt) = return (levelFromText txt)
+  parseJSON invalid = A.typeMismatch "LogLevel" invalid
+
+levelText :: LogLevel -> Text
+levelText LevelDebug = "debug"
+levelText LevelInfo = "info"
+levelText LevelWarn = "warn"
+levelText LevelError = "error"
+levelText (LevelOther x) = x
+
+levelFromText :: Text -> LogLevel
+levelFromText "debug" = LevelDebug
+levelFromText "info" = LevelInfo
+levelFromText "warn" = LevelWarn
+levelFromText "error" = LevelError
+levelFromText x = LevelOther x
+
+data Message = Text :# [Pair] deriving (Show, Eq, Ord)
+
+instance IsString Message where
+  fromString s = T.pack s :# []
+
+instance ToJSON Message where
+  toEncoding (text :# meta) =
+    let metaMap = KM.fromList meta
+     in AE.pairs $
+          if KM.null metaMap
+            then "text" .= text
+            else "text" .= text <> "meta" .= metaMap
+  toJSON (text :# meta) =
+    let metaMap = KM.fromList meta
+     in A.object $
+          if KM.null metaMap
+            then ["text" .= text]
+            else ["text" .= text, "meta" .= metaMap]

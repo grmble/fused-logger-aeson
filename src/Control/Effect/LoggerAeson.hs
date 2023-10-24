@@ -1,6 +1,7 @@
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.LoggerAeson
@@ -30,6 +31,7 @@ module Control.Effect.LoggerAeson
     Logger (..),
     Message (..),
     Meta (..),
+    Context (..),
     LogLevel (..),
     levelText,
 
@@ -53,9 +55,9 @@ import Data.Foldable qualified as F
 import Data.HashSet qualified as HS
 import Data.Kind (Type)
 import Data.STRef
-import Data.String (IsString (..))
 import Data.Text (Text)
 import Data.Text qualified as T
+import GHC.Exts
 import GHC.Generics (Generic)
 import GHC.Stack (CallStack, HasCallStack, callStack)
 
@@ -85,8 +87,8 @@ import GHC.Stack (CallStack, HasCallStack, callStack)
 --   * No stack: 'logDebugNS', ... these have no location information, but a logsource string
 
 -- | Add context key value pairs during the exection of a code block
-withContext :: (Has Logger sig m) => [Pair] -> m a -> m a
-withContext pairs action = send (WithContext pairs action)
+withContext :: (Has Logger sig m) => Context -> m a -> m a
+withContext (Context context) action = send (WithContext (DL.toList context) action)
 
 -- | Debug message with callstack but no log source
 logDebug :: (HasCallStack, Has Logger sig m) => Message -> m ()
@@ -178,6 +180,11 @@ instance IsString Message where
 newtype Meta = Meta {unMeta :: DL.DList (Key, Value)}
   deriving (Show, Eq, Generic, Semigroup, Monoid)
 
+instance GHC.Exts.IsList Meta where
+  type Item Meta = (Key, Value)
+  fromList = Meta . DL.fromList
+  toList = DL.toList . unMeta
+
 instance KeyValue Value Meta where
   (.=) = explicitToField toJSON
   explicitToField f k v = Meta $ DL.singleton (k, f v)
@@ -215,3 +222,11 @@ uniqueMeta meta = runST $ do
       modifySTRef seenRef (HS.insert k)
       modifySTRef resultRef ((k, v) :)
   readSTRef resultRef
+
+newtype Context = Context {unContext :: DL.DList (Key, Value)}
+  deriving (Show, Eq, Generic, Semigroup, Monoid)
+
+instance GHC.Exts.IsList Context where
+  type Item Context = (Key, Value)
+  fromList = Context . DL.fromList
+  toList = DL.toList . unContext

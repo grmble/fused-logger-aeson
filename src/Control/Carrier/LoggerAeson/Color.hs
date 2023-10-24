@@ -66,4 +66,6 @@ timestampBuilder tz t =
   utcToLocalTime tz t
     & localTimeOfDay
     & iso8601Show
+    & (++ "00000")
+    & take 14
     & string7

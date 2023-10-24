@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Xxx where
@@ -5,15 +6,6 @@ module Xxx where
 import Control.Carrier.LoggerAeson
 import Control.Carrier.Reader
 import Control.Effect.LoggerAeson
-  ( Logger,
-    Message ((:#)),
-    logDebug,
-    logError,
-    logInfo,
-    logWarn,
-    withContext,
-    (.=),
-  )
 import Data.Function ((&))
 
 example :: (Has Logger sig m) => m ()
@@ -22,8 +14,10 @@ example = do
   withContext ["foo" .= ("666" :: String)] $
     withContext ["foo" .= ("bar" :: String), "foo" .= ("xxx" :: String)] $ do
       logInfo "does it have a context?"
-      logWarn "oopsie"
-      logError "ouchie"
+      logWarn $ "huh?" :# ["xxx" .= ("foo" :: String)]
+
+asdf :: Meta
+asdf = ["asdf" .= True]
 
 main :: IO ()
 main = do

@@ -12,6 +12,7 @@ import Control.Effect.LoggerAeson
   ( LogLevel,
     Logger (..),
     Message ((:#)),
+    Meta (..),
     Value,
   )
 import Control.Effect.Reader
@@ -20,6 +21,7 @@ import Data.Aeson (encode)
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Builder (Builder, lazyByteString, toLazyByteString)
 import Data.ByteString.Lazy.Char8 qualified as LB8
+import Data.DList qualified as DL
 import Data.Time (getCurrentTimeZone)
 import Data.Time.Clock (getCurrentTime)
 import GHC.Stack (CallStack)
@@ -91,7 +93,7 @@ defaultMkLogItem ctx cs lvl (text :# meta) = do
         location = fromCallStack cs,
         level = lvl,
         threadContext = ctx,
-        message = LogMessage {text, meta = KM.fromList meta}
+        message = LogMessage {text, meta = KM.fromList $ DL.toList $ unMeta meta}
       }
 
 jsonItem :: LogItem -> Builder

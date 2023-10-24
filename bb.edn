@@ -1,5 +1,6 @@
 {:tasks
  {doctest (shell "cabal repl --with-ghc=doctest")
-  ;; install (shell "cabal install exe:name-of-proj --overwrite-policy=always")
-  test (shell "cabal test --test-show-details=always")}}
+  install (shell "cabal install --overwrite-policy=always")
+  rtest (shell "cabal repl test:fused-logger-aeson-test")
+  vtest (shell "cabal test --test-show-details=always")}}
 

@@ -1,2 +1,3 @@
 /dist-newstyle/
 .clj-kondo/
+.lsp/

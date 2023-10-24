@@ -29,26 +29,33 @@ module Control.Effect.LoggerAeson
     -- * Types and utilites
     Logger (..),
     Message (..),
+    Meta (..),
     LogLevel (..),
     levelText,
 
     -- * Re-exports
-    Pair,
     Value,
+    Pair,
     (.=),
   )
 where
 
 import Control.Algebra (Has, send)
+import Control.Monad (forM_, unless)
+import Control.Monad.ST
 import Data.Aeson
 import Data.Aeson.Encoding qualified as AE
 import Data.Aeson.KeyMap qualified as KM
-import Data.Aeson.Types (Pair)
+import Data.Aeson.Types
 import Data.Aeson.Types qualified as A
+import Data.DList qualified as DL
+import Data.Foldable qualified as F
+import Data.HashSet qualified as HS
 import Data.Kind (Type)
+import Data.STRef
+import Data.String (IsString (..))
 import Data.Text (Text)
 import Data.Text qualified as T
-import GHC.Exts (IsString (..))
 import GHC.Generics (Generic)
 import GHC.Stack (CallStack, HasCallStack, callStack)
 
@@ -160,7 +167,51 @@ levelFromText "info" = LevelInfo
 levelFromText "debug" = LevelDebug
 levelFromText x = LevelOther x
 
-data Message = Text :# [Pair] deriving (Show, Eq, Ord)
+data Message = Text :# Meta
+  deriving (Show, Eq, Generic)
+
+infixr 5 :#
 
 instance IsString Message where
-  fromString s = T.pack s :# []
+  fromString s = T.pack s :# mempty
+
+newtype Meta = Meta {unMeta :: DL.DList (Key, Value)}
+  deriving (Show, Eq, Generic, Semigroup, Monoid)
+
+instance KeyValue Value Meta where
+  (.=) = explicitToField toJSON
+  explicitToField f k v = Meta $ DL.singleton (k, f v)
+
+instance ToJSON Message where
+  toEncoding (text :# meta) =
+    let textEncoding = "text" .= text
+        encoding =
+          if null $ unMeta meta
+            then textEncoding
+            else textEncoding <> "meta" .= meta
+     in pairs encoding
+
+instance FromJSON Message where
+  parseJSON (Object o) = mkMessage <$> o .: "text" <*> o .:? "meta"
+    where
+      mkMessage txt (Just meta) = txt :# meta
+      mkMessage txt Nothing = txt :# mempty
+  parseJSON invalid = typeMismatch "Object" invalid
+
+instance ToJSON Meta where
+  toEncoding = pairs . foldMap (uncurry (.=)) . uniqueMeta . unMeta
+
+instance FromJSON Meta where
+  parseJSON (Object o) = return $ Meta $ DL.fromList $ KM.toList o
+  parseJSON invalid = typeMismatch "Object" invalid
+
+uniqueMeta :: (Foldable f) => f (Key, Value) -> [(Key, Value)]
+uniqueMeta meta = runST $ do
+  seenRef <- newSTRef HS.empty
+  resultRef <- newSTRef []
+  forM_ (reverse $ F.toList meta) $ \(k, v) -> do
+    done <- HS.member k <$> readSTRef seenRef
+    unless done $ do
+      modifySTRef seenRef (HS.insert k)
+      modifySTRef resultRef ((k, v) :)
+  readSTRef resultRef

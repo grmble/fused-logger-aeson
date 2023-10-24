@@ -25,7 +25,9 @@ common deps
         , aeson
         , ansi-terminal
         , bytestring
+        , dlist
         , fused-effects
+        , unordered-containers
         , text
         , time
     default-language: GHC2021

@@ -3,7 +3,7 @@
 module Control.Carrier.LoggerAeson.Color where
 
 import Control.Carrier.LoggerAeson.Class
-import Control.Effect.LoggerAeson (LogLevel (..), Message (..), levelText)
+import Control.Effect.LoggerAeson (LogLevel (..), levelText)
 import Data.Aeson (Value, encode)
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Builder

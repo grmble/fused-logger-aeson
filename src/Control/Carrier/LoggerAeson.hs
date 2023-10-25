@@ -9,19 +9,12 @@ import Control.Algebra (Algebra (..), type (:+:) (..))
 import Control.Carrier.LoggerAeson.Class
 import Control.Carrier.LoggerAeson.Color (coloredItem)
 import Control.Effect.LoggerAeson
-  ( LogLevel,
-    Logger (..),
-    Message ((:#)),
-    Meta (..),
-    Value,
-  )
 import Control.Effect.Reader
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Aeson (encode)
 import Data.Aeson.KeyMap qualified as KM
-import Data.ByteString.Builder (Builder, lazyByteString, toLazyByteString)
+import Data.ByteString.Builder (Builder, char7, lazyByteString, toLazyByteString)
 import Data.ByteString.Lazy.Char8 qualified as LB8
-import Data.DList qualified as DL
 import Data.Time (getCurrentTimeZone)
 import Data.Time.Clock (getCurrentTime)
 import GHC.Stack (CallStack)
@@ -67,37 +60,41 @@ instance
   where
   askContext = LoggerRIOC ask
 
-loggerEnv :: Handle -> IO (LoggerEnv IO LogItem)
-loggerEnv handle = do
+guessLoggerEnv :: Handle -> IO (LoggerEnv IO LogItem)
+guessLoggerEnv handle = do
   supportsColor <- hSupportsANSIColor handle
+  loggerEnv supportsColor handle
+
+loggerEnv :: Bool -> Handle -> IO (LoggerEnv IO LogItem)
+loggerEnv color handle = do
   tz <- getCurrentTimeZone
   return
     LoggerEnv
       { mkLogItem = defaultMkLogItem,
         fromItem =
-          if supportsColor
+          if color
             then coloredItem tz
             else jsonItem,
         handle = outputToHandle handle
       }
 
 defaultLoggerEnv :: IO (LoggerEnv IO LogItem)
-defaultLoggerEnv = loggerEnv stdout
+defaultLoggerEnv = guessLoggerEnv stdout
 
 defaultMkLogItem :: KM.KeyMap Value -> CallStack -> LogLevel -> Message -> IO LogItem
-defaultMkLogItem ctx cs lvl (text :# meta) = do
+defaultMkLogItem ctx cs lvl message = do
   now <- getCurrentTime
   return
     LogItem
       { time = now,
         location = fromCallStack cs,
         level = lvl,
-        threadContext = ctx,
-        message = LogMessage {text, meta = KM.fromList $ DL.toList $ unMeta meta}
+        context = ctx,
+        message
       }
 
 jsonItem :: LogItem -> Builder
-jsonItem = lazyByteString . encode
+jsonItem item = lazyByteString (encode item) <> char7 '\n'
 
 outputToHandle :: Handle -> Builder -> IO ()
 outputToHandle handle = LB8.hPutStr handle . toLazyByteString

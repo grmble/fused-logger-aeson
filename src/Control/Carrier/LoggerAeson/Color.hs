@@ -3,9 +3,8 @@
 module Control.Carrier.LoggerAeson.Color where
 
 import Control.Carrier.LoggerAeson.Class
-import Control.Effect.LoggerAeson (LogLevel (..), levelText)
-import Data.Aeson (Value, encode)
-import Data.Aeson.KeyMap qualified as KM
+import Control.Effect.LoggerAeson (LogLevel (..), Message (..), levelText)
+import Data.Aeson (ToJSON, encode)
 import Data.ByteString.Builder
 import Data.Function ((&))
 import Data.Text qualified as T
@@ -22,12 +21,12 @@ coloredItem
   tz
   LogItem
     { time,
-      threadContext,
+      context,
       level,
       message
     } =
     do
-      let LogMessage {text, meta} = message
+      let text :# meta = message
       timestampBuilder tz time
         <> char7 ' '
         <> sgrBuilder (levelColor level)
@@ -35,17 +34,18 @@ coloredItem
         <> coloredLevelText level
         <> char7 ']'
         <> sgrBuilder [Reset]
-        <> keymapBuilder threadContext
+        <> jsonBuilder context
         <> char7 ' '
         <> byteString (T.encodeUtf8 text)
-        <> keymapBuilder meta
+        <> jsonBuilder meta
         <> char7 '\n'
 
-keymapBuilder :: KM.KeyMap Value -> Builder
-keymapBuilder km =
-  if KM.null km
-    then mempty
-    else char7 ' ' <> lazyByteString (encode km)
+jsonBuilder :: (ToJSON a) => a -> Builder
+jsonBuilder a =
+  let enc = encode a
+   in if enc == "{}"
+        then mempty
+        else char7 ' ' <> lazyByteString enc
 
 coloredLevelText :: LogLevel -> Builder
 coloredLevelText lvl | lvl >= LevelInfo = encodeUtf8Builder $ levelText lvl

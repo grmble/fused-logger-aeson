@@ -12,8 +12,8 @@ example :: (Has Logger sig m) => m ()
 example = do
   logDebug $ "just a key and a value" :# "foo" .= ("bar" :: String)
   withContext ["foo" .= ("666" :: String)] $
-    withContext ["foo" .= ("bar" :: String), "foo" .= ("baz" :: String)] $
-      logInfo "does it have a context?"
+    withContext ("foo" .= ("bar" :: String)) $
+      logInfo "what is the context?"
 
 trace :: LB8.ByteString -> LB8.ByteString
 trace bs = unsafePerformIO $ do

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -5,21 +6,33 @@ module Control.Effect.LoggerAesonSpec where
 
 import Control.Effect.LoggerAeson
 import Data.Aeson
+import Data.Aeson.KeyMap qualified as KM
+import Data.DList qualified as DL
 import Data.Text.Arbitrary ()
+import GHC.Exts (toList)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
-import Data.DList qualified as DL
-import Data.Aeson.KeyMap qualified as KM
 
 spec :: Spec
 spec = do
   describe "LogLevel" $
     prop "roundtrips to JSON" $ \lvl ->
       (eitherDecode . encode) lvl `shouldBe` (Right lvl :: Either String LogLevel)
-  describe "Message" $
+  describe "Message" $ do
+    it "can be given as string literal" $
+      ("look ma! no hands" :: Message) `shouldBe` ("look ma! no hands" :# mempty)
     prop "roundtrips to JSON" $ \msg ->
       (eitherDecode . encode) msg `shouldBe` (Right msg :: Either String Message)
+  describe "Meta" $ do
+    it "preserves order with monoid construction" $
+      toList ("foo" .= True <> "bar" .= False :: Meta) `shouldBe` [("foo", Bool True), ("bar", Bool False)]
+    it "preserves order with list construction" $
+      toList (["foo" .= True, "bar" .= False] :: Meta) `shouldBe` [("foo", Bool True), ("bar", Bool False)]
+    it "last pair wins with list construction" $
+      toList (["foo" .= True, "foo" .= False] :: Meta) `shouldBe` [("foo", Bool False)]
+    it "last pair wins with monoid construction" $
+      toList ("foo" .= True <> "foo" .= False :: Meta) `shouldBe` [("foo", Bool False)]
 
 instance Arbitrary LogLevel where
   arbitrary =

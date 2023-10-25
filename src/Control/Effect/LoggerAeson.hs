@@ -180,10 +180,10 @@ instance IsString Message where
 newtype Meta = Meta {unMeta :: DL.DList (Key, Value)}
   deriving (Show, Eq, Generic, Semigroup, Monoid)
 
-instance GHC.Exts.IsList Meta where
+instance IsList Meta where
   type Item Meta = (Key, Value)
   fromList = Meta . DL.fromList
-  toList = DL.toList . unMeta
+  toList = uniqueMeta . DL.toList . unMeta
 
 instance KeyValue Value Meta where
   (.=) = explicitToField toJSON
@@ -206,7 +206,7 @@ instance FromJSON Message where
   parseJSON invalid = typeMismatch "Object" invalid
 
 instance ToJSON Meta where
-  toEncoding = pairs . foldMap (uncurry (.=)) . uniqueMeta . unMeta
+  toEncoding = pairs . foldMap (uncurry (.=)) . toList
 
 instance FromJSON Meta where
   parseJSON (Object o) = return $ Meta $ DL.fromList $ KM.toList o
@@ -225,6 +225,10 @@ uniqueMeta meta = runST $ do
 
 newtype Context = Context {unContext :: DL.DList (Key, Value)}
   deriving (Show, Eq, Generic, Semigroup, Monoid)
+
+instance KeyValue Value Context where
+  (.=) = explicitToField toJSON
+  explicitToField f k v = Context $ DL.singleton (k, f v)
 
 instance GHC.Exts.IsList Context where
   type Item Context = (Key, Value)

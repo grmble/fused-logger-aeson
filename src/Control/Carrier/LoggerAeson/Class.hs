@@ -5,11 +5,9 @@
 
 module Control.Carrier.LoggerAeson.Class where
 
-import Control.Effect.LoggerAeson (LogLevel, Message)
-import Data.Aeson (FromJSON (parseJSON), KeyValue ((.=)), Options (..), ToJSON (..), Value (Object), defaultOptions, genericParseJSON, genericToEncoding, genericToJSON, object, (.:), (.:?))
-import Data.Aeson.Encoding qualified as AE
+import Control.Effect.LoggerAeson
+import Data.Aeson (Encoding, FromJSON (parseJSON), Options (..), ToJSON (..), defaultOptions, genericParseJSON, genericToEncoding, genericToJSON)
 import Data.Aeson.KeyMap qualified as KM
-import Data.Aeson.Types (typeMismatch)
 import Data.ByteString.Builder (Builder)
 import Data.Char (toLower, toUpper)
 import Data.Text (Text)
@@ -36,10 +34,10 @@ data LogItem = LogItem
   { time :: UTCTime,
     level :: LogLevel,
     location :: Location,
-    threadContext :: KM.KeyMap Value,
-    message :: LogMessage
+    context :: KM.KeyMap Value,
+    message :: Message
   }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, Show)
 
 instance ToJSON LogItem where
   toEncoding = genericToEncoding defaultOptions
@@ -52,40 +50,12 @@ data Location = Location
   deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON Location where
+  toEncoding :: Location -> Encoding
   toEncoding = genericToEncoding defaultOptions {fieldLabelModifier = stripPrefix 3}
   toJSON = genericToJSON defaultOptions {fieldLabelModifier = stripPrefix 3}
 
 instance FromJSON Location where
   parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = prefix "loc"}
-
--- | Log Message for serialization
---
--- Message has the nicer interface, but LogMessage is actually stored
-data LogMessage = LogMessage
-  { text :: Text,
-    meta :: KM.KeyMap Value
-  }
-  deriving (Show, Eq, Ord)
-
-instance ToJSON LogMessage where
-  toEncoding LogMessage {text, meta} =
-    AE.pairs $
-      if KM.null meta
-        then "text" .= text
-        else "text" .= text <> "meta" .= meta
-  toJSON LogMessage {text, meta} =
-    object $
-      if KM.null meta
-        then ["text" .= text]
-        else ["text" .= text, "meta" .= meta]
-
-instance FromJSON LogMessage where
-  parseJSON (Object o) = mkMessage <$> o .: "text" <*> o .:? "meta"
-    where
-      mkMessage :: Text -> Maybe (KM.KeyMap Value) -> LogMessage
-      mkMessage text (Just meta) = LogMessage {text, meta}
-      mkMessage text Nothing = LogMessage {text, meta = KM.empty}
-  parseJSON invalid = typeMismatch "Object" invalid
 
 stripPrefix :: Int -> [Char] -> [Char]
 stripPrefix n = lower1 . drop n

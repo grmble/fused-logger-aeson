@@ -43,6 +43,9 @@ data LogItem = LogItem
 instance ToJSON LogItem where
   toEncoding = genericToEncoding defaultOptions
 
+instance FromJSON LogItem where
+  parseJSON = genericParseJSON defaultOptions
+
 data Location = Location
   { locPackage :: Text,
     locModule :: Text,
@@ -52,11 +55,14 @@ data Location = Location
 
 instance ToJSON Location where
   toEncoding :: Location -> Encoding
-  toEncoding = genericToEncoding defaultOptions {fieldLabelModifier = stripPrefix 3}
-  toJSON = genericToJSON defaultOptions {fieldLabelModifier = stripPrefix 3}
+  toEncoding = genericToEncoding locationOptions
+  toJSON = genericToJSON locationOptions
 
 instance FromJSON Location where
-  parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = prefix "loc"}
+  parseJSON = genericParseJSON locationOptions
+
+locationOptions :: Options
+locationOptions = defaultOptions {fieldLabelModifier = stripPrefix 3}
 
 stripPrefix :: Int -> [Char] -> [Char]
 stripPrefix n = lower1 . drop n

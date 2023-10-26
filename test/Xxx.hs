@@ -19,7 +19,7 @@ example = do
 
 main :: IO ()
 main = do
-  env <- loggerEnv False stdout
+  env <- loggerEnv LogVerbose LogColorGuess stdout
   runLogger example
     & runReader env
     & runReader defaultContext

@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -10,6 +11,7 @@ import Control.Carrier.LoggerAeson.Class
 import Control.Carrier.LoggerAeson.Color (coloredItem)
 import Control.Effect.LoggerAeson
 import Control.Effect.Reader
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Aeson (encode)
 import Data.Aeson.KeyMap qualified as KM
@@ -38,9 +40,11 @@ instance
     L (LogOther cs lvl msg) -> do
       env <- (askLoggerEnv :: LoggerRIOC m (LoggerEnv IO LogItem))
       lctx <- askContext
+      let LoggerEnv {logFilter} = env
       item <- liftIO $ mkLogItem env lctx cs lvl msg
-      let str = fromItem env item
-      liftIO $ handle env str
+      when (logFilter lvl (location item)) $
+        liftIO $
+          handle env (fromItem env item)
       LoggerRIOC $ return ctx
     L (WithContext pairs action) ->
       LoggerRIOC $
@@ -60,14 +64,36 @@ instance
   where
   askContext = LoggerRIOC ask
 
-guessLoggerEnv :: Handle -> IO (LoggerEnv IO LogItem)
-guessLoggerEnv handle = do
-  supportsColor <- hSupportsANSIColor handle
-  loggerEnv supportsColor handle
+-- | Log filter settings
+data LogFilter
+  = -- | quiet - only errors and warnings
+    LogQuiet
+  | -- | default is INFO
+    LogDefault
+  | -- | log everything
+    LogVerbose
+  | -- | custom filter
+    LogFilter {logFilter :: LogLevel -> Location -> Bool}
 
-loggerEnv :: Bool -> Handle -> IO (LoggerEnv IO LogItem)
-loggerEnv color handle = do
+mkLogFilter :: LogFilter -> (LogLevel -> Location -> Bool)
+mkLogFilter LogQuiet lvl _ | lvl <= LevelWarn = True
+mkLogFilter LogDefault lvl _ | lvl <= LevelInfo = True
+mkLogFilter LogVerbose _ _ = True
+mkLogFilter (LogFilter x) lvl loc = x lvl loc
+mkLogFilter _ _ _ = False
+
+-- | Log output options
+data LogOutput = LogJSON | LogColor | LogColorGuess
+
+logInColor :: LogOutput -> Handle -> IO Bool
+logInColor LogJSON _ = return False
+logInColor LogColor _ = return True
+logInColor LogColorGuess handle = hSupportsANSIColor handle
+
+loggerEnv :: LogFilter -> LogOutput -> Handle -> IO (LoggerEnv IO LogItem)
+loggerEnv f output handle = do
   tz <- getCurrentTimeZone
+  color <- logInColor output handle
   return
     LoggerEnv
       { mkLogItem = defaultMkLogItem,
@@ -75,11 +101,12 @@ loggerEnv color handle = do
           if color
             then coloredItem tz
             else jsonItem,
-        handle = outputToHandle handle
+        handle = outputToHandle handle,
+        logFilter = mkLogFilter f
       }
 
 defaultLoggerEnv :: IO (LoggerEnv IO LogItem)
-defaultLoggerEnv = guessLoggerEnv stdout
+defaultLoggerEnv = loggerEnv LogDefault LogColorGuess stdout
 
 defaultMkLogItem :: KM.KeyMap Value -> CallStack -> LogLevel -> Message -> IO LogItem
 defaultMkLogItem ctx cs lvl message = do

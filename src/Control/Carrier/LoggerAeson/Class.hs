@@ -21,6 +21,7 @@ import GHC.Stack (SrcLoc (..), getCallStack)
 data LoggerEnv m item = LoggerEnv
   { mkLogItem :: KM.KeyMap Value -> CallStack -> LogLevel -> Message -> m item,
     fromItem :: item -> Builder,
+    logFilter :: LogLevel -> Location -> Bool,
     handle :: Builder -> m ()
   }
 

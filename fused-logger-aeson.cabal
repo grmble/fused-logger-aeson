@@ -28,6 +28,7 @@ common deps
         , dlist
         , fused-effects
         , unordered-containers
+        , stm
         , text
         , time
     default-language: GHC2021

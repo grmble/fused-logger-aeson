@@ -1,16 +1,32 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Control.Carrier.LoggerAeson where
+module Control.Carrier.LoggerAeson
+  ( LoggerEnv (..),
+    LogFilter (..),
+    LogOutput (..),
+    LoggerRIOC (..),
+    loggerEnv,
+    defaultLoggerEnv,
+    defaultContext,
+    withAsyncHandler,
+    jsonItem,
+    coloredItem,
+  )
+where
 
 import Control.Algebra (Algebra (..), type (:+:) (..))
 import Control.Carrier.LoggerAeson.Class
 import Control.Carrier.LoggerAeson.Color (coloredItem)
+import Control.Concurrent
+import Control.Concurrent.STM (TChan, atomically, newTChanIO, readTChan, tryReadTChan, writeTChan)
 import Control.Effect.LoggerAeson
 import Control.Effect.Reader
+import Control.Exception (bracket)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Aeson (encode)
@@ -21,7 +37,7 @@ import Data.Time (getCurrentTimeZone)
 import Data.Time.Clock (getCurrentTime)
 import GHC.Stack (CallStack)
 import System.Console.ANSI (hSupportsANSIColor)
-import System.IO (Handle, stdout)
+import System.IO (Handle, hFlush, stdout)
 
 -- | Reader Context Logging IO Carrier
 --
@@ -44,7 +60,7 @@ instance
       item <- liftIO $ mkLogItem env lctx cs lvl msg
       when (logFilter lvl (location item)) $
         liftIO $
-          handle env (fromItem env item)
+          itemHandler env (fromItem env item)
       LoggerRIOC $ return ctx
     L (WithContext pairs action) ->
       LoggerRIOC $
@@ -101,7 +117,7 @@ loggerEnv f output handle = do
           if color
             then coloredItem tz
             else jsonItem,
-        handle = outputToHandle handle,
+        itemHandler = outputToHandle handle,
         logFilter = mkLogFilter f
       }
 
@@ -129,3 +145,23 @@ outputToHandle handle = LB8.hPutStr handle . toLazyByteString
 -- | Empty context with correct type
 defaultContext :: KM.KeyMap Value
 defaultContext = KM.empty
+
+withAsyncHandler :: Handle -> ((Builder -> IO ()) -> IO a) -> IO a
+withAsyncHandler handle action = do
+  chan <- newTChanIO @Builder
+  bracket (forkIO (loop chan)) killThread $ const (action (handler chan))
+  where
+    handler chan b = atomically (writeTChan chan b)
+
+    loop :: TChan Builder -> IO ()
+    loop chan = do
+      b <- atomically (readTChan chan) >>= drain chan
+      LB8.hPutStr handle (toLazyByteString b)
+      hFlush handle
+      loop chan
+
+    drain :: TChan Builder -> Builder -> IO Builder
+    drain chan acc =
+      atomically (tryReadTChan chan) >>= \case
+        Just b -> drain chan (acc <> b)
+        Nothing -> return acc

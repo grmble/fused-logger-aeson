@@ -3,13 +3,13 @@
 module Control.Carrier.LoggerAesonSpec where
 
 import Control.Carrier.LoggerAeson
-import Control.Carrier.LoggerAeson.Class (LoggerEnv (..))
 import Control.Carrier.Reader
 import Data.ByteString.Builder
 import Data.ByteString.Lazy.Char8 qualified as LB8
 import Data.Function ((&))
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Example qualified as E
+import System.IO (stdout)
 import Test.Hspec
 
 spec :: Spec
@@ -17,9 +17,9 @@ spec = do
   describe "LoggerAeson Reader IO Carrier" $
     it "combines contexts in correct order (inner context wins)" $ do
       bref <- newIORef @Builder mempty
-      env <- defaultLoggerEnv
+      env <- loggerEnv LogVerbose LogJSON stdout
       runLogger E.example
-        & runReader env {handle = builderLogger bref, fromItem = jsonItem}
+        & runReader env {itemHandler = builderLogger bref, fromItem = jsonItem}
         & runReader defaultContext
       builder <- readIORef bref
       -- LB8.putStr (toLazyByteString builder)

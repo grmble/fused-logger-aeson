@@ -19,7 +19,8 @@ example = do
 
 main :: IO ()
 main = do
-  env <- loggerEnv LogVerbose LogColorGuess stdout
-  runLogger example
-    & runReader env
-    & runReader defaultContext
+  withAsyncHandler stdout $ \itemHandler -> do
+    env <- loggerEnv LogVerbose LogColorGuess stdout
+    runLogger example
+      & runReader (env {itemHandler})
+      & runReader defaultContext

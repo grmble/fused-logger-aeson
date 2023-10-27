@@ -34,6 +34,7 @@ module Control.Effect.LoggerAeson
     Context (..),
     LogLevel (..),
     levelText,
+    toKeyMap,
 
     -- * Re-exports
     Value,
@@ -234,3 +235,6 @@ instance GHC.Exts.IsList Context where
   type Item Context = (Key, Value)
   fromList = Context . DL.fromList
   toList = DL.toList . unContext
+
+toKeyMap :: Context -> KM.KeyMap Value
+toKeyMap = KM.fromList . toList

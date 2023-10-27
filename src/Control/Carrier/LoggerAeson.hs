@@ -8,14 +8,18 @@
 module Control.Carrier.LoggerAeson
   ( LoggerEnv (..),
     LogFilter (..),
+    LogItem (..),
     LogOutput (..),
     LoggerRIOC (..),
+    KeyMap,
+    Value,
     loggerEnv,
     defaultLoggerEnv,
     defaultContext,
     withAsyncHandler,
     jsonItem,
     coloredItem,
+    logOtherIO,
   )
 where
 
@@ -30,6 +34,7 @@ import Control.Exception (bracket)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Aeson (encode)
+import Data.Aeson.KeyMap (KeyMap)
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Builder (Builder, char7, lazyByteString, toLazyByteString)
 import Data.ByteString.Lazy.Char8 qualified as LB8
@@ -49,18 +54,14 @@ newtype LoggerRIOC m a = LoggerRIOC {runLogger :: m a}
   deriving (Functor, Applicative, Monad, MonadIO)
 
 instance
-  (MonadIO m, Algebra sig m, Has (Reader (KM.KeyMap Value)) sig m, Has (Reader (LoggerEnv IO LogItem)) sig m) =>
+  (MonadIO m, Algebra sig m, Has (Reader (KeyMap Value)) sig m, Has (Reader (LoggerEnv IO LogItem)) sig m) =>
   Algebra (Logger :+: sig) (LoggerRIOC m)
   where
   alg hdl sig ctx = case sig of
     L (LogOther cs lvl msg) -> do
       env <- (askLoggerEnv :: LoggerRIOC m (LoggerEnv IO LogItem))
       lctx <- askContext
-      let LoggerEnv {logFilter} = env
-      item <- liftIO $ mkLogItem env lctx cs lvl msg
-      when (logFilter lvl (location item)) $
-        liftIO $
-          itemHandler env (fromItem env item)
+      logOtherIO env lctx cs lvl msg
       LoggerRIOC $ return ctx
     L (WithContext pairs action) ->
       LoggerRIOC $
@@ -75,10 +76,25 @@ instance
   askLoggerEnv = LoggerRIOC ask
 
 instance
-  (Algebra sig m, Has (Reader (KM.KeyMap Value)) sig m) =>
+  (Algebra sig m, Has (Reader (KeyMap Value)) sig m) =>
   MonadLoggerContext (LoggerRIOC m)
   where
   askContext = LoggerRIOC ask
+
+-- | Log from non-fused code
+--
+-- The context can change repeatedly in a loop, so we store the 'KeyMap' and
+-- not the list form (that has the nicer syntax).
+--
+-- If you need to log from non-fused code, use KeyMap directly,
+-- or use a Context and transform with @toKeyMap@ from the effect module.
+logOtherIO :: (MonadIO m) => LoggerEnv IO LogItem -> KeyMap Value -> CallStack -> LogLevel -> Message -> m ()
+logOtherIO env lctx cs lvl msg = do
+  let LoggerEnv {logFilter} = env
+  item <- liftIO $ mkLogItem env lctx cs lvl msg
+  when (logFilter lvl (location item)) $
+    liftIO $
+      itemHandler env (fromItem env item)
 
 -- | Log filter settings
 data LogFilter
@@ -124,7 +140,7 @@ loggerEnv f output handle = do
 defaultLoggerEnv :: IO (LoggerEnv IO LogItem)
 defaultLoggerEnv = loggerEnv LogDefault LogColorGuess stdout
 
-defaultMkLogItem :: KM.KeyMap Value -> CallStack -> LogLevel -> Message -> IO LogItem
+defaultMkLogItem :: KeyMap Value -> CallStack -> LogLevel -> Message -> IO LogItem
 defaultMkLogItem ctx cs lvl message = do
   now <- getCurrentTime
   return
@@ -143,7 +159,7 @@ outputToHandle :: Handle -> Builder -> IO ()
 outputToHandle handle = LB8.hPutStr handle . toLazyByteString
 
 -- | Empty context with correct type
-defaultContext :: KM.KeyMap Value
+defaultContext :: KeyMap Value
 defaultContext = KM.empty
 
 withAsyncHandler :: Handle -> ((Builder -> IO ()) -> IO a) -> IO a

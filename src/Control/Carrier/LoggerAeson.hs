@@ -62,7 +62,7 @@ instance
       env <- (askLoggerEnv :: LoggerRIOC m (LoggerEnv IO LogItem))
       lctx <- askContext
       logOtherIO env lctx cs lvl msg
-      LoggerRIOC $ return ctx
+      LoggerRIOC $ pure ctx
     L (WithContext pairs action) ->
       LoggerRIOC $
         local (KM.fromList pairs <>) $
@@ -118,15 +118,15 @@ mkLogFilter _ _ _ = False
 data LogOutput = LogJSON | LogColor | LogColorGuess
 
 logInColor :: LogOutput -> Handle -> IO Bool
-logInColor LogJSON _ = return False
-logInColor LogColor _ = return True
+logInColor LogJSON _ = pure False
+logInColor LogColor _ = pure True
 logInColor LogColorGuess handle = hSupportsANSIColor handle
 
 loggerEnv :: LogFilter -> LogOutput -> Handle -> IO (LoggerEnv IO LogItem)
 loggerEnv f output handle = do
   tz <- getCurrentTimeZone
   color <- logInColor output handle
-  return
+  pure
     LoggerEnv
       { mkLogItem = defaultMkLogItem,
         fromItem =
@@ -143,7 +143,7 @@ defaultLoggerEnv = loggerEnv LogDefault LogColorGuess stdout
 defaultMkLogItem :: KeyMap Value -> CallStack -> LogLevel -> Message -> IO LogItem
 defaultMkLogItem ctx cs lvl message = do
   now <- getCurrentTime
-  return
+  pure
     LogItem
       { time = now,
         location = fromCallStack cs,
@@ -180,4 +180,4 @@ withAsyncHandler handle action = do
     drain chan acc =
       atomically (tryReadTChan chan) >>= \case
         Just b -> drain chan (acc <> b)
-        Nothing -> return acc
+        Nothing -> pure acc

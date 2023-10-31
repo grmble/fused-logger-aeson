@@ -153,7 +153,7 @@ instance ToJSON LogLevel where
   toEncoding = AE.text . levelText
 
 instance FromJSON LogLevel where
-  parseJSON (A.String txt) = return (levelFromText txt)
+  parseJSON (A.String txt) = pure (levelFromText txt)
   parseJSON invalid = A.typeMismatch "LogLevel" invalid
 
 levelText :: LogLevel -> Text
@@ -210,7 +210,7 @@ instance ToJSON Meta where
   toEncoding = pairs . foldMap (uncurry (.=)) . toList
 
 instance FromJSON Meta where
-  parseJSON (Object o) = return $ Meta $ DL.fromList $ KM.toList o
+  parseJSON (Object o) = pure $ Meta $ DL.fromList $ KM.toList o
   parseJSON invalid = typeMismatch "Object" invalid
 
 uniqueMeta :: (Foldable f) => f (Key, Value) -> [(Key, Value)]

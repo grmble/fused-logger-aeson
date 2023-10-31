@@ -37,11 +37,11 @@ spec = do
 instance Arbitrary LogLevel where
   arbitrary =
     oneof
-      [ return LevelError,
-        return LevelWarn,
-        return LevelInfo,
-        return LevelDebug,
-        return (LevelOther "trace")
+      [ pure LevelError,
+        pure LevelWarn,
+        pure LevelInfo,
+        pure LevelDebug,
+        pure (LevelOther "trace")
       ]
 
 instance Arbitrary Message where
@@ -50,7 +50,7 @@ instance Arbitrary Message where
     -- FromJSON will read a KeyMap, which will remove duplicates and change the order
     -- so we use KM.toList as well to mirror the change
     meta <- Meta . DL.fromList . KM.toList <$> arbitrary
-    return $ text :# meta
+    pure $ text :# meta
 
 main :: IO ()
 main = hspec spec

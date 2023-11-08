@@ -1,6 +1,6 @@
 cabal-version:      3.6
 name:               fused-logger-aeson
-version:            0.1.0.0
+version:            0.0.1.0
 synopsis:           Using monad-logger-aeson with fused-effects
 -- A longer description of the package.
 -- description:

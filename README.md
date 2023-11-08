@@ -1,4 +1,9 @@
-# fused-katip
+# fused-logger-aeson
+
+Structured logging, source-code compatible with 'monad-logger-aeson'.
+
+For clients of the api, changing the import lines is all that is required.
+
 
 ## Install needed binaries
 

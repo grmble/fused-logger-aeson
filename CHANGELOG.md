@@ -1,5 +1,5 @@
 # Revision history for fused-logger-aeson
 
-## 0.1.0.0 -- YYYY-mm-dd
+## 0.0.1.0 -- 2023-11-08
 
-* First version. Released on an unsuspecting world.
+* First version. Structured logging
